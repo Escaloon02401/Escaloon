@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CODECHECK — Антиплагиат</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Syne:wght@700;800&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0a0a0b; color: #e5e5ea; font-family: 'IBM Plex Mono', 'Courier New', monospace; min-height: 100vh; }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: #0a0a0b; }
+  ::-webkit-scrollbar-thumb { background: #2c2c2e; border-radius: 3px; }
+
+  @keyframes slideIn { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes fadeIn  { from { opacity:0; transform:translateY(8px); }  to { opacity:1; transform:translateY(0); } }
+  @keyframes spin    { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+  @keyframes fillBar { from { width:0; } to { width: var(--w); } }
+
+  /* Header */
+  #header {
+    border-bottom: 1px solid #1c1c1e;
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: #0d0d0f;
+    position: sticky; top: 0; z-index: 10;
+  }
+  .logo-icon {
+    width:36px; height:36px;
+    background: linear-gradient(135deg,#ff3b3b,#ff6b00);
+    border-radius:8px; display:flex; align-items:center; justify-content:center;
+    font-size:18px; flex-shrink:0;
+  }
+  .logo-title { font-family:'Syne',sans-serif; font-weight:800; font-size:18px; letter-spacing:-.02em; color:#f2f2f7; }
+  .logo-sub   { font-size:11px; color:#48484a; letter-spacing:.04em; }
+  #btn-reset {
+    margin-left:auto; background:transparent; border:1px solid #2c2c2e;
+    color:#636366; padding:6px 14px; border-radius:6px; cursor:pointer;
+    font-size:12px; font-family:'IBM Plex Mono',monospace; transition:all .15s; display:none;
+  }
+  #btn-reset:hover { border-color:#636366; color:#e5e5ea; }
+
+  /* Main */
+  #main { max-width:800px; margin:0 auto; padding:32px 24px; }
+
+  /* Upload */
+  #upload-zone {
+    border:2px dashed #2c2c2e; border-radius:16px; padding:64px 32px;
+    text-align:center; cursor:pointer; transition:all .2s;
+    background:#0d0d0f; animation:fadeIn .4s ease;
+  }
+  #upload-zone.drag { border-color:#ff3b3b; background:#1a0000; }
+  #upload-zone:hover { border-color:#48484a; }
+  .upload-icon { font-size:40px; margin-bottom:16px; }
+  .upload-title { font-family:'Syne',sans-serif; font-size:20px; font-weight:700; color:#f2f2f7; margin-bottom:8px; }
+  .upload-sub   { color:#636366; font-size:13px; line-height:1.6; }
+
+  /* Method cards */
+  .method-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:24px; }
+  .method-card { background:#0d0d0f; border:1px solid #1c1c1e; border-radius:10px; padding:16px; }
+  .method-icon { font-size:20px; margin-bottom:8px; }
+  .method-title{ font-size:12px; font-weight:600; color:#aeaeb2; margin-bottom:4px; }
+  .method-desc { font-size:11px; color:#48484a; line-height:1.5; }
+
+  /* File list */
+  #file-list-wrap { display:none; animation:fadeIn .4s ease; }
+  .section-title { font-family:'Syne',sans-serif; font-size:22px; font-weight:800; color:#f2f2f7; margin-bottom:4px; }
+  .section-sub   { color:#636366; font-size:13px; margin-bottom:20px; }
+  #file-list     { display:flex; flex-direction:column; gap:8px; margin-bottom:24px; }
+  .file-item {
+    display:flex; align-items:center; gap:12px;
+    background:#0d0d0f; border:1px solid #1c1c1e;
+    border-radius:8px; padding:10px 14px;
+  }
+  .file-dot  { color:#ff3b3b; font-size:16px; }
+  .file-name { font-family:monospace; font-size:13px; flex:1; color:#aeaeb2; }
+  .file-size { font-size:11px; color:#48484a; }
+
+  /* Run button */
+  #btn-run {
+    width:100%; padding:16px;
+    background:linear-gradient(135deg,#ff3b3b 0%,#ff6b00 100%);
+    border:none; border-radius:10px; color:#fff;
+    font-family:'Syne',sans-serif; font-weight:700; font-size:15px;
+    letter-spacing:.03em; cursor:pointer; transition:opacity .15s;
+    display:flex; align-items:center; justify-content:center; gap:10px;
+  }
+  #btn-run:disabled { opacity:.5; cursor:not-allowed; background:#1c1c1e; }
+  .spinner {
+    display:inline-block; width:16px; height:16px;
+    border:2px solid #636366; border-top-color:#fff;
+    border-radius:50%; animation:spin .8s linear infinite;
+  }
+
+  /* Results */
+  #results-wrap { display:none; animation:fadeIn .4s ease; }
+  .stat-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px; }
+  .stat-card { background:#0d0d0f; border:1px solid #333; border-radius:10px; padding:16px; }
+  .stat-val  { font-size:28px; font-weight:700; font-family:'Syne',sans-serif; }
+  .stat-lbl  { font-size:11px; color:#48484a; margin-top:4px; }
+
+  .legend { display:flex; gap:16px; flex-wrap:wrap; font-size:11px; color:#48484a; margin-bottom:16px; }
+  .legend-dot { display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:5px; vertical-align:middle; }
+
+  #pairs-list { display:flex; flex-direction:column; gap:10px; }
+
+  .pair-card {
+    background:#111113; border:1px solid #222; border-radius:10px;
+    padding:18px 20px; cursor:pointer; transition:all .2s;
+    border-left-width:3px;
+  }
+  .pair-card:hover { background:#18181b; }
+  .pair-top { display:flex; align-items:flex-start; gap:12px; margin-bottom:12px; }
+  .pair-names { flex:1; }
+  .pair-name-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:6px; }
+  .fname { color:#e5e5ea; font-family:monospace; font-size:13px; background:#1c1c1e; padding:2px 8px; border-radius:4px; }
+  .arrow { color:#636366; }
+  .verdict-badge {
+    font-size:11px; font-weight:700; letter-spacing:.08em;
+    padding:4px 10px; border-radius:6px; white-space:nowrap;
+    border:1px solid;
+  }
+  .bar-wrap { display:flex; align-items:center; gap:10px; }
+  .bar-track { flex:1; height:6px; background:#1c1c1e; border-radius:3px; overflow:hidden; }
+  .bar-fill  { height:100%; border-radius:3px; }
+  .bar-pct   { font-family:monospace; font-size:13px; min-width:38px; }
+  .pair-meta { display:flex; gap:20px; font-size:12px; color:#636366; }
+  .expand-icon { margin-left:auto; color:#48484a; }
+
+  .pair-detail {
+    margin-top:14px; padding:12px; background:#0a0a0b;
+    border-radius:6px; border:1px solid #2c2c2e; display:none;
+  }
+  .detail-title { font-size:11px; color:#636366; margin-bottom:8px; letter-spacing:.06em; text-transform:uppercase; }
+  .gram-item { font-family:monospace; font-size:12px; padding:4px 0; border-bottom:1px solid #1c1c1e; opacity:.85; }
+  .gram-item:last-child { border-bottom:none; }
+
+  .disclaimer {
+    margin-top:28px; padding:14px 16px;
+    background:#0d0d0f; border:1px solid #1c1c1e;
+    border-radius:8px; font-size:11px; color:#48484a; line-height:1.6;
+  }
+
+  @media(max-width:600px){
+    #header{padding:14px 16px;}
+    #main{padding:20px 14px;}
+    .method-grid,.stat-grid{grid-template-columns:1fr;}
+    .pair-meta{flex-wrap:wrap;gap:8px;}
+  }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div class="logo-icon">⚖</div>
+  <div>
+    <div class="logo-title">CODECHECK</div>
+    <div class="logo-sub">Антиплагиат для учебных проектов</div>
+  </div>
+  <button id="btn-reset" onclick="reset()">← Сначала</button>
+</div>
+
+<div id="main">
+
+  <!-- UPLOAD -->
+  <div id="upload-zone"
+    onclick="document.getElementById('file-input').click()"
+    ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+    <input id="file-input" type="file" multiple
+      accept=".py,.js,.ts,.jsx,.tsx,.java,.cpp,.c,.cs,.go,.rb,.php,.swift,.kt,.rs,.html,.css,.txt"
+      style="display:none" onchange="handleFileInput(event)">
+    <div class="upload-icon">📂</div>
+    <div class="upload-title">Загрузите файлы для проверки</div>
+    <div class="upload-sub">
+      Перетащите сюда или кликните для выбора<br>
+      Минимум 2 файла · .py .js .ts .java .cpp .c и др.
+    </div>
+  </div>
+
+  <div class="method-grid">
+    <div class="method-card">
+      <div class="method-icon">⚙</div>
+      <div class="method-title">Токенизация</div>
+      <div class="method-desc">Нормализация кода: удаление комментариев, унификация строк и чисел</div>
+    </div>
+    <div class="method-card">
+      <div class="method-icon">🔗</div>
+      <div class="method-title">N-граммы (n=5)</div>
+      <div class="method-desc">Разбивка токенов на перекрывающиеся последовательности по 5</div>
+    </div>
+    <div class="method-card">
+      <div class="method-icon">📊</div>
+      <div class="method-title">Jaccard</div>
+      <div class="method-desc">Коэффициент сходства: пересечение / объединение множеств n-грамм</div>
+    </div>
+  </div>
+
+  <!-- FILE LIST -->
+  <div id="file-list-wrap">
+    <div class="section-title">Файлы загружены</div>
+    <div class="section-sub" id="file-sub"></div>
+    <div id="file-list"></div>
+    <button id="btn-run" onclick="runAnalysis()">Запустить проверку →</button>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="results-wrap">
+    <div class="section-title">Отчёт проверки</div>
+    <div class="section-sub" id="results-sub"></div>
+
+    <div class="stat-grid" id="stat-grid"></div>
+
+    <div class="legend">
+      <span><span class="legend-dot" style="background:#ff3b3b"></span>Высокое (≥70%)</span>
+      <span><span class="legend-dot" style="background:#ff9f0a"></span>Среднее (40–69%)</span>
+      <span><span class="legend-dot" style="background:#30d158"></span>Низкое (15–39%)</span>
+      <span><span class="legend-dot" style="background:#636366"></span>Уникальный (&lt;15%)</span>
+    </div>
+
+    <div id="pairs-list"></div>
+
+    <div class="disclaimer">
+      ⚠ Учебная версия. Метод: токенизация → 5-граммы → коэффициент Жаккара.
+      Анализ выполняется локально в браузере — файлы не покидают ваш компьютер.
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─── State ───────────────────────────────────────────────────────────────────
+let loadedFiles = [];
+
+// ─── Tokenizer ───────────────────────────────────────────────────────────────
+function tokenize(code) {
+  return code
+    .replace(/\/\/[^\n]*/g, '')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/#[^\n]*/g, '')
+    .replace(/"[^"]*"/g, '"STR"')
+    .replace(/'[^']*'/g, '"STR"')
+    .replace(/`[^`]*`/g, '"STR"')
+    .replace(/\b\d+(\.\d+)?\b/g, 'NUM')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .split(' ')
+    .filter(Boolean);
+}
+
+function getNgrams(tokens, n = 5) {
+  const grams = new Set();
+  for (let i = 0; i <= tokens.length - n; i++)
+    grams.add(tokens.slice(i, i + n).join(' '));
+  return grams;
+}
+
+function jaccard(a, b) {
+  if (!a.size && !b.size) return 0;
+  let inter = 0;
+  for (const x of a) if (b.has(x)) inter++;
+  return inter / (a.size + b.size - inter);
+}
+
+function analyzeFiles(files) {
+  const projects = files.map(f => ({
+    name: f.name,
+    tokens: tokenize(f.content)
+  }));
+
+  const results = [];
+  for (let i = 0; i < projects.length; i++) {
+    for (let j = i + 1; j < projects.length; j++) {
+      const nA = getNgrams(projects[i].tokens);
+      const nB = getNgrams(projects[j].tokens);
+      const sim = jaccard(nA, nB);
+      const common = [...nA].filter(x => nB.has(x));
+
+      results.push({
+        a: projects[i].name,
+        b: projects[j].name,
+        tokensA: projects[i].tokens.length,
+        tokensB: projects[j].tokens.length,
+        similarity: sim,
+        commonNgrams: common.length,
+        samples: common.slice(0, 4),
+        verdict: sim >= .7 ? 'HIGH' : sim >= .4 ? 'MEDIUM' : sim >= .15 ? 'LOW' : 'NONE'
+      });
+    }
+  }
+
+  return results.sort((a, b) => b.similarity - a.similarity);
+}
+
+// ─── Verdict config ───────────────────────────────────────────────────────────
+const VC = {
+  HIGH:   { label:'Высокое сходство',  color:'#ff3b3b', bg:'#1a0000' },
+  MEDIUM: { label:'Среднее сходство',  color:'#ff9f0a', bg:'#1a0f00' },
+  LOW:    { label:'Низкое сходство',   color:'#30d158', bg:'#001a08' },
+  NONE:   { label:'Уникальный код',    color:'#636366', bg:'#0a0a0a' }
+};
+
+// ─── File loading ─────────────────────────────────────────────────────────────
+function handleDragOver(e) { e.preventDefault(); document.getElementById('upload-zone').classList.add('drag'); }
+function handleDragLeave()  { document.getElementById('upload-zone').classList.remove('drag'); }
+function handleDrop(e)      { e.preventDefault(); handleDragLeave(); processFiles(e.dataTransfer.files); }
+function handleFileInput(e) { processFiles(e.target.files); }
+
+function processFiles(fileList) {
+  if (!fileList || fileList.length < 2) {
+    alert('Загрузите минимум 2 файла для сравнения.');
+    return;
+  }
+  const arr = [...fileList];
+  const readers = arr.map(file => new Promise(res => {
+    const r = new FileReader();
+    r.onload = e => res({ name: file.name, content: e.target.result, size: file.size });
+    r.readAsText(file);
+  }));
+  Promise.all(readers).then(files => {
+    loadedFiles = files;
+    showFileList();
+  });
+}
+
+function showFileList() {
+  document.getElementById('upload-zone').style.display = 'none';
+  document.querySelector('.method-grid').style.display = 'none';
+  document.getElementById('results-wrap').style.display = 'none';
+
+  const wrap = document.getElementById('file-list-wrap');
+  wrap.style.display = 'block';
+
+  const totalKB = Math.round(loadedFiles.reduce((a,b) => a + b.size, 0) / 1024);
+  const pairs   = (loadedFiles.length * (loadedFiles.length - 1)) / 2;
+  document.getElementById('file-sub').textContent =
+    `${loadedFiles.length} файлов · ${totalKB} KB · ${pairs} пар для сравнения`;
+
+  const list = document.getElementById('file-list');
+  list.innerHTML = loadedFiles.map((f, i) => `
+    <div class="file-item" style="animation:slideIn .3s ease ${i*50}ms both">
+      <span class="file-dot">◈</span>
+      <span class="file-name">${esc(f.name)}</span>
+      <span class="file-size">${(f.size/1024).toFixed(1)} KB</span>
+    </div>
+  `).join('');
+
+  document.getElementById('btn-reset').style.display = 'block';
+}
+
+// ─── Analysis ─────────────────────────────────────────────────────────────────
+function runAnalysis() {
+  const btn = document.getElementById('btn-run');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Анализируем...';
+
+  setTimeout(() => {
+    const results = analyzeFiles(loadedFiles);
+    showResults(results);
+    btn.disabled = false;
+    btn.innerHTML = 'Запустить проверку →';
+  }, 500);
+}
+
+function showResults(results) {
+  document.getElementById('file-list-wrap').style.display = 'none';
+
+  const wrap = document.getElementById('results-wrap');
+  wrap.style.display = 'block';
+
+  document.getElementById('results-sub').textContent =
+    `${loadedFiles.length} файлов · ${results.length} пар сравнено`;
+
+  const high = results.filter(r => r.verdict === 'HIGH').length;
+  const med  = results.filter(r => r.verdict === 'MEDIUM').length;
+  const avg  = results.length
+    ? (results.reduce((a,b) => a + b.similarity, 0) / results.length * 100).toFixed(1)
+    : 0;
+
+  document.getElementById('stat-grid').innerHTML = `
+    <div class="stat-card" style="border-color:${high>0?'#ff3b3b33':'#1c1c1e'}">
+      <div class="stat-val" style="color:${high>0?'#ff3b3b':'#636366'}">${high}</div>
+      <div class="stat-lbl">Высокое сходство ≥70%</div>
+    </div>
+    <div class="stat-card" style="border-color:${med>0?'#ff9f0a33':'#1c1c1e'}">
+      <div class="stat-val" style="color:${med>0?'#ff9f0a':'#636366'}">${med}</div>
+      <div class="stat-lbl">Среднее сходство 40–69%</div>
+    </div>
+    <div class="stat-card" style="border-color:#1c1c1e">
+      <div class="stat-val" style="color:#aeaeb2">${avg}%</div>
+      <div class="stat-lbl">Среднее по всем парам</div>
+    </div>
+  `;
+
+  document.getElementById('pairs-list').innerHTML = results.map((r, i) => {
+    const v   = VC[r.verdict];
+    const pct = Math.round(r.similarity * 100);
+    const samplesHtml = r.samples.length
+      ? r.samples.map((s,si) =>
+          `<div class="gram-item" style="color:${v.color}">${esc(s)}</div>`
+        ).join('')
+      : '<div class="gram-item" style="color:#48484a">Совпадений не найдено</div>';
+
+    return `
+    <div class="pair-card"
+      style="border-left-color:${v.color}; animation:slideIn .4s ease ${i*80}ms both"
+      onclick="toggleDetail(this)">
+      <div class="pair-top">
+        <div class="pair-names">
+          <div class="pair-name-row">
+            <span class="fname">${esc(r.a)}</span>
+            <span class="arrow">⟷</span>
+            <span class="fname">${esc(r.b)}</span>
+          </div>
+          <div class="bar-wrap">
+            <div class="bar-track">
+              <div class="bar-fill" style="width:${pct}%; background:${v.color}; box-shadow:0 0 8px ${v.color}88"></div>
+            </div>
+            <span class="bar-pct" style="color:${v.color}">${pct}%</span>
+          </div>
+        </div>
+        <div class="verdict-badge"
+          style="color:${v.color}; background:${v.bg}; border-color:${v.color}44">
+          ${v.label}
+        </div>
+      </div>
+      <div class="pair-meta">
+        <span>Токены A: ${r.tokensA}</span>
+        <span>Токены B: ${r.tokensB}</span>
+        <span>Общих n-грамм: ${r.commonNgrams}</span>
+        <span class="expand-icon">▼</span>
+      </div>
+      <div class="pair-detail">
+        <div class="detail-title">Примеры совпадающих фрагментов (5-граммы):</div>
+        ${samplesHtml}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleDetail(card) {
+  const detail = card.querySelector('.pair-detail');
+  const icon   = card.querySelector('.expand-icon');
+  const open   = detail.style.display === 'block';
+  detail.style.display = open ? 'none' : 'block';
+  icon.textContent = open ? '▼' : '▲';
+}
+
+function reset() {
+  loadedFiles = [];
+  document.getElementById('file-input').value = '';
+  document.getElementById('upload-zone').style.display = 'block';
+  document.querySelector('.method-grid').style.display = 'grid';
+  document.getElementById('file-list-wrap').style.display = 'none';
+  document.getElementById('results-wrap').style.display = 'none';
+  document.getElementById('btn-reset').style.display = 'none';
+  document.getElementById('file-list').innerHTML = '';
+  document.getElementById('pairs-list').innerHTML = '';
+}
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+</body>
+</html>
